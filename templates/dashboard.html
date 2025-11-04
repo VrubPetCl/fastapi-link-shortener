@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - URL Shortener{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">Dashboard</h1>
+            <p class="text-gray-600">{{ user_email }}</p>
+        </div>
+        <form action="/auth/logout" method="POST">
+            <button
+                type="submit"
+                class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition duration-200"
+            >
+                Logout
+            </button>
+        </form>
+    </div>
+
+    <!-- Create Link Form -->
+    <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h2 class="text-xl font-bold mb-4 text-gray-800">Create Short Link</h2>
+        <form
+            hx-post="/d/links"
+            hx-target="#links-table tbody"
+            hx-swap="afterbegin"
+            hx-on::after-request="this.reset()"
+            class="space-y-4"
+        >
+            <div>
+                <label for="original_url" class="block text-sm font-medium text-gray-700 mb-2">
+                    Original URL
+                </label>
+                <input
+                    type="url"
+                    id="original_url"
+                    name="original_url"
+                    placeholder="https://example.com/very/long/url"
+                    required
+                    class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+            </div>
+            <div>
+                <label for="custom_code" class="block text-sm font-medium text-gray-700 mb-2">
+                    Custom Short Code (optional)
+                </label>
+                <input
+                    type="text"
+                    id="custom_code"
+                    name="custom_code"
+                    placeholder="my-custom-link"
+                    pattern="[A-Za-z0-9_-]{3,50}"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                <p class="text-sm text-gray-500 mt-1">3-50 characters, alphanumeric, hyphens, and underscores</p>
+            </div>
+            <button
+                type="submit"
+                class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition duration-200"
+            >
+                Create Link
+            </button>
+        </form>
+    </div>
+
+    <!-- Links Table -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <h2 class="text-xl font-bold p-6 text-gray-800 border-b">Your Links</h2>
+        <div class="overflow-x-auto">
+            <table id="links-table" class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Short Code
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Original URL
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Clicks
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Created
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for link in links %}
+                        {% include "partials/link_row.html" %}
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if not links %}
+            <div class="p-6 text-center text-gray-500">
+                No links yet. Create your first one above!
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Stats Modal -->
+    <div id="stats-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-gray-800">Link Statistics</h2>
+                <button
+                    onclick="document.getElementById('stats-modal').classList.add('hidden')"
+                    class="text-gray-500 hover:text-gray-700"
+                >
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div id="stats-content" class="p-6">
+                <!-- Stats will be loaded here via HTMX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Show stats modal when HTMX loads stats
+    document.body.addEventListener('htmx:afterSwap', function(event) {
+        if (event.detail.target.id === 'stats-content') {
+            document.getElementById('stats-modal').classList.remove('hidden');
+        }
+    });
+</script>
+{% endblock %}

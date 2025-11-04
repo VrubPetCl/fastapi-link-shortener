@@ -1,0 +1,71 @@
+<div class="space-y-6">
+    <!-- Link Info -->
+    <div class="bg-gray-50 p-4 rounded-lg">
+        <h3 class="text-lg font-semibold mb-2">Link Information</h3>
+        <div class="space-y-2">
+            <div>
+                <span class="font-medium">Short Code:</span>
+                <code class="ml-2 bg-white px-2 py-1 rounded">{{ link['short_code'] }}</code>
+            </div>
+            <div>
+                <span class="font-medium">Original URL:</span>
+                <a href="{{ link['original_url'] }}" target="_blank" class="ml-2 text-blue-600 hover:underline break-all">
+                    {{ link['original_url'] }}
+                </a>
+            </div>
+            <div>
+                <span class="font-medium">Total Clicks:</span>
+                <span class="ml-2">{{ link['clicks'] }}</span>
+            </div>
+            <div>
+                <span class="font-medium">Created:</span>
+                <span class="ml-2">{{ link['created_at'] }}</span>
+            </div>
+            {% if link['last_accessed'] %}
+            <div>
+                <span class="font-medium">Last Accessed:</span>
+                <span class="ml-2">{{ link['last_accessed'] }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Click History -->
+    <div>
+        <h3 class="text-lg font-semibold mb-4">Recent Clicks (Last 100)</h3>
+        {% if clicks %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Timestamp</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">IP Address</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Referrer</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">User Agent</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for click in clicks %}
+                    <tr>
+                        <td class="px-4 py-2 text-sm text-gray-900 whitespace-nowrap">
+                            {{ click['timestamp'] }}
+                        </td>
+                        <td class="px-4 py-2 text-sm text-gray-900 whitespace-nowrap">
+                            {{ click['ip_address'] }}
+                        </td>
+                        <td class="px-4 py-2 text-sm text-gray-500 truncate max-w-xs" title="{{ click['referrer'] }}">
+                            {{ click['referrer'] or '-' }}
+                        </td>
+                        <td class="px-4 py-2 text-sm text-gray-500 truncate max-w-xs" title="{{ click['user_agent'] }}">
+                            {{ click['user_agent'] or '-' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-center py-4">No clicks yet</p>
+        {% endif %}
+    </div>
+</div>
