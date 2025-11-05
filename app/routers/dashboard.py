@@ -230,7 +230,7 @@ async def login(
         httponly=True,
         secure=True,
         samesite="lax",
-        max_age=30 * 24 * 60 * 60  # 30 days
+        max_age=30 * 60  # 30 minutes
     )
 
     return response
@@ -283,7 +283,7 @@ async def register(
         httponly=True,
         secure=True,
         samesite="lax",
-        max_age=30 * 24 * 60 * 60  # 30 days
+        max_age=30 * 60  # 30 minutes
     )
 
     return response

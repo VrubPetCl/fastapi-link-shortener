@@ -14,7 +14,7 @@ pwd_hash = PasswordHash.recommended()
 # In production, use environment variable and keep secret!
 JWT_SECRET_KEY = secrets.token_urlsafe(32)
 JWT_ALGORITHM = "HS256"
-TOKEN_EXPIRY_DAYS = 30
+TOKEN_EXPIRY_MINUTES = 30
 
 
 def hash_password(password: str) -> str:
@@ -54,7 +54,7 @@ def create_token(user_id: int) -> str:
     Returns:
         JWT token string
     """
-    expires = datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRY_DAYS)
+    expires = datetime.now(timezone.utc) + timedelta(minutes=TOKEN_EXPIRY_MINUTES)
 
     payload = {
         "user_id": user_id,
@@ -99,5 +99,5 @@ def delete_token(token: str) -> None:
         token: Token to delete (no-op for JWT)
     """
     # JWT tokens are stateless and cannot be revoked without a blacklist
-    # They will expire naturally after TOKEN_EXPIRY_DAYS
+    # They will expire naturally after TOKEN_EXPIRY_MINUTES
     pass
