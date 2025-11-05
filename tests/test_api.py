@@ -212,6 +212,7 @@ def test_delete_link(authenticated_client):
     response = authenticated_client.delete(f"/d/links/{link_id}")
 
     assert response.status_code == 200
+    assert response.text == ""  # Empty response for HTMX
 
     # Verify link is deleted
     link = execute_query(

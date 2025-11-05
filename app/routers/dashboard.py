@@ -1,6 +1,6 @@
 """Dashboard routes."""
 
-from fastapi import APIRouter, Request, Form, HTTPException, Cookie, Depends
+from fastapi import APIRouter, Request, Form, HTTPException, Cookie, Depends, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from typing import Optional
@@ -144,7 +144,8 @@ async def delete_link(
     # Delete link (cascades to clicks)
     execute_query("DELETE FROM links WHERE id = ?", (link_id,))
 
-    return {"status": "deleted"}
+    # Return empty response for HTMX to remove the element
+    return Response(status_code=200)
 
 
 @router.get("/links/{link_id}/stats", response_class=HTMLResponse)
