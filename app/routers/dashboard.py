@@ -1,5 +1,6 @@
 """Dashboard routes."""
 
+import os
 from fastapi import APIRouter, Request, Form, HTTPException, Cookie, Depends, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -11,6 +12,9 @@ from app.utils.short_code import generate_short_code, is_valid_short_code
 
 router = APIRouter(prefix="/d", tags=["dashboard"])
 templates = Jinja2Templates(directory="templates")
+
+# Registration configuration
+REGISTRATION_ENABLED = os.getenv("ENABLE_REGISTRATION", "false").lower() == "true"
 
 
 async def get_current_user(auth_token: Optional[str] = Cookie(None)) -> int:
@@ -196,7 +200,10 @@ async def link_stats(
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     """Login page."""
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse("login.html", {
+        "request": request,
+        "registration_enabled": REGISTRATION_ENABLED
+    })
 
 
 @router.post("/login")
@@ -239,6 +246,8 @@ async def login(
 @router.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request):
     """Register page."""
+    if not REGISTRATION_ENABLED:
+        raise HTTPException(status_code=403, detail="Registration is disabled")
     return templates.TemplateResponse("register.html", {"request": request})
 
 
@@ -248,6 +257,9 @@ async def register(
     password: str = Form(...)
 ):
     """Register a new user."""
+    if not REGISTRATION_ENABLED:
+        raise HTTPException(status_code=403, detail="Registration is disabled")
+
     # Validate email and password
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="Invalid email")

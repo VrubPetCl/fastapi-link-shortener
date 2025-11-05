@@ -39,10 +39,12 @@
                     Login
                 </button>
             </form>
+            {% if registration_enabled %}
             <p class="mt-4 text-center text-gray-600">
                 Don't have an account?
                 <a href="/d/register" class="text-blue-600 hover:text-blue-800 font-medium">Register</a>
             </p>
+            {% endif %}
         </div>
     </div>
 </div>
