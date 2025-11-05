@@ -1,18 +1,19 @@
-"""Authentication utilities using pwdlib."""
+"""Authentication utilities using pwdlib and JWT."""
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import jwt
 from pwdlib import PasswordHash
 
 # Initialize password hasher with Argon2
 pwd_hash = PasswordHash.recommended()
 
-# In-memory token storage (for production, use Redis or database)
-# Format: {token: {"user_id": int, "expires": datetime}}
-_token_store: dict[str, dict] = {}
-
+# JWT configuration
+# In production, use environment variable and keep secret!
+JWT_SECRET_KEY = secrets.token_urlsafe(32)
+JWT_ALGORITHM = "HS256"
 TOKEN_EXPIRY_DAYS = 30
 
 
@@ -45,54 +46,58 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 def create_token(user_id: int) -> str:
     """
-    Create a new authentication token for a user.
+    Create a new JWT authentication token for a user.
 
     Args:
         user_id: User ID to associate with token
 
     Returns:
-        New token string
+        JWT token string
     """
-    token = secrets.token_urlsafe(32)
-    expires = datetime.utcnow() + timedelta(days=TOKEN_EXPIRY_DAYS)
+    expires = datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRY_DAYS)
 
-    _token_store[token] = {
+    payload = {
         "user_id": user_id,
-        "expires": expires
+        "exp": expires,
+        "iat": datetime.now(timezone.utc)
     }
 
+    token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
     return token
 
 
 def verify_token(token: str) -> Optional[int]:
     """
-    Verify a token and return associated user ID.
+    Verify a JWT token and return associated user ID.
 
     Args:
-        token: Token to verify
+        token: JWT token to verify
 
     Returns:
         User ID if token is valid, None otherwise
     """
-    if token not in _token_store:
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        return payload.get("user_id")
+    except jwt.ExpiredSignatureError:
+        # Token has expired
         return None
-
-    token_data = _token_store[token]
-
-    # Check if token has expired
-    if datetime.utcnow() > token_data["expires"]:
-        del _token_store[token]
+    except jwt.InvalidTokenError:
+        # Token is invalid
         return None
-
-    return token_data["user_id"]
 
 
 def delete_token(token: str) -> None:
     """
     Delete a token (for logout).
 
+    Note: With JWT, tokens cannot be truly "deleted" as they are stateless.
+    This function is kept for API compatibility but does nothing.
+    Tokens will expire naturally based on their expiration time.
+
     Args:
-        token: Token to delete
+        token: Token to delete (no-op for JWT)
     """
-    if token in _token_store:
-        del _token_store[token]
+    # JWT tokens are stateless and cannot be revoked without a blacklist
+    # They will expire naturally after TOKEN_EXPIRY_DAYS
+    pass

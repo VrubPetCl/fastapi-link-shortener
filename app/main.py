@@ -26,9 +26,8 @@ async def home(request: Request):
 
 
 # Import routers
-from app.routers import auth, dashboard, redirect
+from app.routers import dashboard, redirect
 
-app.include_router(auth.router)
 app.include_router(dashboard.router)
 
 # Redirect router must be last to catch all remaining root-level paths

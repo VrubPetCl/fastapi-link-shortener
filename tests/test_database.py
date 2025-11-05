@@ -1,7 +1,7 @@
 """Tests for database operations."""
 
 import pytest
-from app.db.database import execute_query, execute_many, get_cursor
+from app.db.database import execute_query, execute_many, get_connection
 
 
 def test_execute_query_insert(test_db):
@@ -95,19 +95,19 @@ def test_execute_many(test_db):
     assert users["count"] == 3
 
 
-def test_get_cursor_context_manager(test_db):
-    """Test using get_cursor as context manager."""
+def test_get_connection_context_manager(test_db):
+    """Test using get_connection as context manager."""
     from app.utils.auth import hash_password
 
-    email = "cursor@example.com"
+    email = "connection@example.com"
     password_hash = hash_password("password123")
 
-    with get_cursor() as cursor:
-        cursor.execute(
+    with get_connection() as conn:
+        result = conn.execute(
             "INSERT INTO users (email, password_hash) VALUES (?, ?)",
             (email, password_hash)
         )
-        user_id = cursor.lastrowid
+        user_id = result.lastrowid
 
     # Verify data was committed
     user = execute_query(
@@ -120,16 +120,16 @@ def test_get_cursor_context_manager(test_db):
     assert user["email"] == email
 
 
-def test_get_cursor_rollback_on_error(test_db):
-    """Test that get_cursor rolls back on error."""
+def test_get_connection_rollback_on_error(test_db):
+    """Test that get_connection rolls back on error."""
     from app.utils.auth import hash_password
 
     email = "rollback@example.com"
     password_hash = hash_password("password123")
 
     try:
-        with get_cursor() as cursor:
-            cursor.execute(
+        with get_connection() as conn:
+            conn.execute(
                 "INSERT INTO users (email, password_hash) VALUES (?, ?)",
                 (email, password_hash)
             )

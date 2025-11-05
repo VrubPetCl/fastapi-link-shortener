@@ -1,4 +1,4 @@
-"""Database utilities for cursor-based operations."""
+"""Database utilities for connection-based operations."""
 
 import sqlite3
 from contextlib import contextmanager
@@ -8,29 +8,28 @@ from app.db.schema import DATABASE_PATH
 
 
 @contextmanager
-def get_cursor() -> Generator[sqlite3.Cursor, None, None]:
+def get_connection() -> Generator[sqlite3.Connection, None, None]:
     """
-    Context manager for database cursor operations.
+    Context manager for database connection operations.
 
     Yields:
-        sqlite3.Cursor: Database cursor
+        sqlite3.Connection: Database connection with row factory enabled
 
     Example:
-        with get_cursor() as cursor:
-            cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-            result = cursor.fetchone()
+        with get_connection() as conn:
+            conn.execute("INSERT INTO users (email) VALUES (?)", (email,))
+            result = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+            user = result.fetchone()
     """
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row  # Enable column access by name
-    cursor = conn.cursor()
     try:
-        yield cursor
+        yield conn
         conn.commit()
     except Exception:
         conn.rollback()
         raise
     finally:
-        cursor.close()
         conn.close()
 
 
@@ -41,7 +40,7 @@ def execute_query(
     fetch_all: bool = False
 ) -> Optional[Any]:
     """
-    Execute a query with parameters using cursor.
+    Execute a query with parameters.
 
     Args:
         query: SQL query string with ? placeholders
@@ -50,17 +49,17 @@ def execute_query(
         fetch_all: If True, return all rows
 
     Returns:
-        Query results or None
+        Query results or None (for INSERTs, returns lastrowid)
     """
-    with get_cursor() as cursor:
-        cursor.execute(query, params)
+    with get_connection() as conn:
+        result = conn.execute(query, params)
 
         if fetch_one:
-            return cursor.fetchone()
+            return result.fetchone()
         elif fetch_all:
-            return cursor.fetchall()
+            return result.fetchall()
 
-        return cursor.lastrowid
+        return result.lastrowid
 
 
 def execute_many(query: str, params_list: list[tuple]) -> int:
@@ -74,6 +73,6 @@ def execute_many(query: str, params_list: list[tuple]) -> int:
     Returns:
         Number of rows affected
     """
-    with get_cursor() as cursor:
-        cursor.executemany(query, params_list)
+    with get_connection() as conn:
+        cursor = conn.executemany(query, params_list)
         return cursor.rowcount

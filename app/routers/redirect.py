@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse
 from datetime import datetime
 
-from app.db.database import execute_query, get_cursor
+from app.db.database import execute_query, get_connection
 
 router = APIRouter(tags=["redirect"])
 
@@ -44,10 +44,10 @@ async def redirect_link(short_code: str, request: Request):
     referrer = request.headers.get("Referer", "")
     user_agent = request.headers.get("User-Agent", "")
 
-    # Use cursor for multiple operations
-    with get_cursor() as cursor:
+    # Use connection for atomic transaction (both operations commit together)
+    with get_connection() as conn:
         # Insert click record
-        cursor.execute(
+        conn.execute(
             """
             INSERT INTO clicks (link_id, ip_address, referrer, user_agent)
             VALUES (?, ?, ?, ?)
@@ -56,7 +56,7 @@ async def redirect_link(short_code: str, request: Request):
         )
 
         # Update link click count and last accessed time
-        cursor.execute(
+        conn.execute(
             """
             UPDATE links
             SET clicks = clicks + 1,
