@@ -1,6 +1,7 @@
 """Dashboard routes."""
 
 import os
+import httpx
 from fastapi import APIRouter, Request, Form, HTTPException, Cookie, Depends, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -20,6 +21,34 @@ limiter = Limiter(key_func=get_remote_address)
 
 # Registration configuration
 REGISTRATION_ENABLED = os.getenv("ENABLE_REGISTRATION", "false").lower() == "true"
+
+# Cloudflare Turnstile configuration
+CF_TURNSTILE_SITE_KEY = os.getenv("CF_TURNSTILE_SITE_KEY")
+CF_TURNSTILE_SECRET_KEY = os.getenv("CF_TURNSTILE_SECRET_KEY")
+
+
+async def verify_turnstile(token: str, remote_ip: str) -> bool:
+    """Verify Cloudflare Turnstile token."""
+    if not CF_TURNSTILE_SECRET_KEY:
+        return True  # Skip verification if not configured
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                json={
+                    "secret": CF_TURNSTILE_SECRET_KEY,
+                    "response": token,
+                    "remoteip": remote_ip
+                },
+                timeout=5.0
+            )
+            result = response.json()
+            return result.get("success", False)
+        except Exception:
+            # If verification fails due to network issues, allow the request
+            # This prevents Turnstile outages from blocking legitimate users
+            return True
 
 
 async def get_current_user(auth_token: Optional[str] = Cookie(None)) -> int:
@@ -208,7 +237,8 @@ async def login_page(request: Request):
     """Login page."""
     return templates.TemplateResponse("login.html", {
         "request": request,
-        "registration_enabled": REGISTRATION_ENABLED
+        "registration_enabled": REGISTRATION_ENABLED,
+        "cf_turnstile_site_key": CF_TURNSTILE_SITE_KEY
     })
 
 
@@ -217,9 +247,22 @@ async def login_page(request: Request):
 async def login(
     request: Request,
     email: str = Form(...),
-    password: str = Form(...)
+    password: str = Form(...),
+    cf_turnstile_response: Optional[str] = Form(None, alias="cf-turnstile-response")
 ):
     """Login user."""
+    # Verify Turnstile if configured
+    if CF_TURNSTILE_SECRET_KEY and CF_TURNSTILE_SITE_KEY:
+        if not cf_turnstile_response:
+            raise HTTPException(status_code=400, detail="Turnstile verification required")
+
+        # Get client IP
+        client_ip = request.client.host if request.client else "0.0.0.0"
+
+        # Verify Turnstile token
+        if not await verify_turnstile(cf_turnstile_response, client_ip):
+            raise HTTPException(status_code=400, detail="Turnstile verification failed")
+
     # Get user
     user = execute_query(
         "SELECT id, password_hash FROM users WHERE email = ?",

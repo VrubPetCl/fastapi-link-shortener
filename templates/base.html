@@ -6,6 +6,7 @@
     <title>{% block title %}URL Shortener{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    {% block head %}{% endblock %}
 </head>
 <body class="bg-gray-50 min-h-screen">
     {% block content %}{% endblock %}
