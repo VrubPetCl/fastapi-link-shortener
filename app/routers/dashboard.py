@@ -7,7 +7,7 @@ from fastapi.templating import Jinja2Templates
 from typing import Optional
 
 from app.db.database import execute_query
-from app.utils.auth import verify_token, hash_password, verify_password, create_token, delete_token
+from app.utils.auth import verify_token, hash_password, verify_password, create_token, delete_token, FORCE_HTTPS
 from app.utils.short_code import generate_short_code, is_valid_short_code
 
 router = APIRouter(prefix="/d", tags=["dashboard"])
@@ -235,7 +235,7 @@ async def login(
         key="auth_token",
         value=token,
         httponly=True,
-        secure=True,
+        secure=FORCE_HTTPS,  # Enable secure cookies when behind HTTPS reverse proxy
         samesite="lax",
         max_age=30 * 60  # 30 minutes
     )
@@ -293,7 +293,7 @@ async def register(
         key="auth_token",
         value=token,
         httponly=True,
-        secure=True,
+        secure=FORCE_HTTPS,  # Enable secure cookies when behind HTTPS reverse proxy
         samesite="lax",
         max_age=30 * 60  # 30 minutes
     )

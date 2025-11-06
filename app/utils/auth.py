@@ -1,5 +1,6 @@
 """Authentication utilities using pwdlib and JWT."""
 
+import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -11,10 +12,32 @@ from pwdlib import PasswordHash
 pwd_hash = PasswordHash.recommended()
 
 # JWT configuration
-# In production, use environment variable and keep secret!
-JWT_SECRET_KEY = secrets.token_urlsafe(32)
 JWT_ALGORITHM = "HS256"
 TOKEN_EXPIRY_MINUTES = 30
+
+# JWT Secret Key - MUST be set in production via environment variable
+# Generate one using: python generate-secret.py
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+
+if not JWT_SECRET_KEY:
+    # Development fallback - generates a random key (tokens won't persist across restarts)
+    JWT_SECRET_KEY = secrets.token_urlsafe(32)
+    import sys
+    print(
+        "⚠️  WARNING: JWT_SECRET_KEY not set in environment variables!\n"
+        "   Using temporary random key. All tokens will be invalidated on restart.\n"
+        "   Generate a secure key with: python generate-secret.py\n"
+        "   Then set it: export JWT_SECRET_KEY='<your-secret>'\n",
+        file=sys.stderr
+    )
+
+# HTTPS configuration
+# Set FORCE_HTTPS=true when running behind a reverse proxy (nginx, caddy, etc.)
+# that terminates HTTPS. This will:
+# - Enable secure cookies (even though app runs on HTTP locally)
+# - Enable ProxyHeadersMiddleware to trust X-Forwarded-Proto headers
+# Set FORCE_HTTPS=false for local development without HTTPS.
+FORCE_HTTPS = os.getenv("FORCE_HTTPS", "true").lower() == "true"
 
 
 def hash_password(password: str) -> str:

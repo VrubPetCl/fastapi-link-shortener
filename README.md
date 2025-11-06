@@ -73,6 +73,48 @@ fastapi-link-shortener/
    python -m app.db.schema
    ```
 
+4. **Configure environment variables**:
+   ```bash
+   # Generate a secure JWT secret key
+   python generate-secret.py
+
+   # Copy and configure .env file
+   cp .env.example .env
+   # Edit .env and add your generated JWT_SECRET_KEY
+   ```
+
+## Configuration
+
+The application uses environment variables for configuration. See `.env.example` for all options.
+
+### Required for Production
+
+**JWT_SECRET_KEY** - Secret key for signing JWT tokens
+```bash
+# Generate a secure key
+python generate-secret.py
+
+# Set in environment
+export JWT_SECRET_KEY='your-generated-key'
+
+# Or add to .env file
+echo "JWT_SECRET_KEY=your-generated-key" >> .env
+```
+
+### Optional Settings
+
+**FORCE_HTTPS** (default: `true`) - Enable when behind HTTPS reverse proxy
+```bash
+export FORCE_HTTPS=true   # Production with nginx/caddy
+export FORCE_HTTPS=false  # Local development
+```
+
+**ENABLE_REGISTRATION** (default: `false`) - Allow public user registration
+```bash
+export ENABLE_REGISTRATION=true   # Allow new signups
+export ENABLE_REGISTRATION=false  # Private instance
+```
+
 ## Running the Application
 
 **Development server**:

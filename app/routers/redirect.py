@@ -5,21 +5,9 @@ from fastapi.responses import RedirectResponse
 from datetime import datetime
 
 from app.db.database import execute_query, get_connection
+from app.utils.request import get_client_ip
 
 router = APIRouter(tags=["redirect"])
-
-
-def get_client_ip(request: Request) -> str:
-    """
-    Get client IP address from request.
-
-    Checks X-Forwarded-For header first (for proxies), falls back to client host.
-    """
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        # Take the first IP in the chain
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
 
 
 @router.get("/{short_code}")
