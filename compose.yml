@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  url-shortener:
+    build:
+      context: .
+      dockerfile: Containerfile
+    container_name: url-shortener
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persistent database storage
+      - ./data:/app/data
+    environment:
+      # REQUIRED: Set your JWT secret key
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+
+      # Optional configuration
+      - FORCE_HTTPS=${FORCE_HTTPS:-true}
+      - ENABLE_REGISTRATION=${ENABLE_REGISTRATION:-false}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    networks:
+      - url-shortener-net
+
+networks:
+  url-shortener-net:
+    driver: bridge

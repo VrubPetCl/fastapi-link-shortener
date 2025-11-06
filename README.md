@@ -117,6 +117,63 @@ export ENABLE_REGISTRATION=false  # Private instance
 
 ## Running the Application
 
+### Option 1: Container Deployment (Recommended)
+
+The easiest way to run the application is using containers with Podman or Docker.
+
+**Prerequisites:**
+- Podman
+- podman-compose
+
+**Quick Start:**
+
+1. **Generate JWT secret**:
+   ```bash
+   python generate-secret.py
+   ```
+
+2. **Set environment variables**:
+   ```bash
+   export JWT_SECRET_KEY='your-generated-secret'
+   ```
+
+3. **Start the container**:
+   ```bash
+   podman-compose up -d
+   ```
+
+4. **Access the application**:
+   - Open http://localhost:8000
+
+**Container Management:**
+```bash
+# View logs
+podman-compose logs -f
+
+# Stop container
+podman-compose down
+
+# Rebuild after code changes
+podman-compose up -d --build
+```
+
+**Manual Container Run:**
+```bash
+# Build the image
+podman build -f Containerfile -t url-shortener .
+
+# Run the container
+mkdir -p ./data
+podman run -d \
+  --name url-shortener \
+  -p 8000:8000 \
+  -v ./data:/app/data:Z \
+  -e JWT_SECRET_KEY='your-secret' \
+  url-shortener
+```
+
+### Option 2: Direct Python Execution
+
 **Development server**:
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
