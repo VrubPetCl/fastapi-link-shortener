@@ -3,19 +3,26 @@
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse
 from datetime import datetime
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.db.database import execute_query, get_connection
 from app.utils.request import get_client_ip
 
 router = APIRouter(tags=["redirect"])
 
+# Get limiter from main app (will be injected)
+limiter = Limiter(key_func=get_remote_address)
+
 
 @router.get("/{short_code}")
+@limiter.limit("60/minute")
 async def redirect_link(short_code: str, request: Request):
     """
     Redirect to original URL and track click.
 
     This catches all root-level paths except those defined elsewhere.
+    Rate limited to prevent abuse: 60 requests per minute per IP.
     """
     # Get link
     link = execute_query(

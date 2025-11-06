@@ -1,18 +1,66 @@
 """Main FastAPI application."""
 
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+import asyncio
 
 from app.db.schema import init_db
+from app.utils.request import get_client_ip
 
-# Initialize database on startup
-init_db()
 
-app = FastAPI(title="URL Shortener")
+# Rate limiter configuration
+def rate_limit_key_func(request: Request) -> str:
+    """Get the client IP for rate limiting, respecting proxy headers."""
+    return get_client_ip(request)
+
+
+limiter = Limiter(key_func=rate_limit_key_func)
+
+
+async def cleanup_rate_limiter():
+    """Background task to clean up rate limiter memory every 24 hours."""
+    while True:
+        await asyncio.sleep(86400)  # 24 hours
+        try:
+            # Reset the rate limiter storage to free memory
+            limiter.reset()
+            print("✓ Rate limiter memory cleaned up", flush=True)
+        except Exception as e:
+            print(f"⚠️  Error cleaning rate limiter: {e}", flush=True)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager for startup/shutdown events."""
+    # Startup
+    init_db()
+
+    # Start background cleanup task
+    cleanup_task = asyncio.create_task(cleanup_rate_limiter())
+
+    yield
+
+    # Shutdown
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
+
+
+app = FastAPI(title="URL Shortener", lifespan=lifespan)
+
+# Add rate limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # HTTPS configuration - set FORCE_HTTPS=true when behind a reverse proxy
 FORCE_HTTPS = os.getenv("FORCE_HTTPS", "true").lower() == "true"

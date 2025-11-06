@@ -228,9 +228,33 @@ CREATE TABLE clicks (
 
 - **Password Hashing**: Argon2 via pwdlib (recommended algorithm)
 - **Secure Cookies**: httpOnly, secure, SameSite=Lax
-- **Token-based Auth**: 30-day expiring tokens
+- **Token-based Auth**: JWT with configurable expiration (default: 30 minutes)
 - **SQL Injection Protection**: Parameterized queries throughout
 - **Input Validation**: Email, password, URL, and short code validation
+- **Rate Limiting**: Built-in protection against brute force and abuse
+- **Reverse Proxy Support**: Correct IP detection for rate limiting and logging
+
+## Rate Limiting
+
+The application includes built-in rate limiting to protect against abuse and brute force attacks:
+
+### Rate Limits (per IP address)
+
+- **Login**: 5 attempts per minute
+- **Registration**: 3 attempts per hour
+- **Link Creation**: 10 per minute (per user)
+- **Link Redirects**: 60 per minute (public endpoint)
+
+### Features
+
+- **IP-based Limiting**: Uses real client IP from proxy headers (X-Forwarded-For, X-Real-IP)
+- **Automatic Cleanup**: Memory cleaned every 24 hours to prevent RAM growth
+- **User-friendly Errors**: Returns HTTP 429 with clear rate limit messages
+- **No External Dependencies**: In-memory implementation, no Redis required
+
+### Behavior
+
+When rate limits are exceeded, users receive a `429 Too Many Requests` response with a `Retry-After` header indicating when they can retry. Rate limits reset automatically based on the time window (per minute or per hour).
 
 ## Development Guidelines
 
@@ -269,7 +293,7 @@ with get_cursor() as cursor:
 - [ ] Bulk link import/export
 - [ ] Advanced analytics dashboard
 - [ ] Custom domains support
-- [ ] Rate limiting
+- [x] Rate limiting
 - [ ] API key authentication for programmatic access
 
 ## License

@@ -5,6 +5,8 @@ from fastapi import APIRouter, Request, Form, HTTPException, Cookie, Depends, Re
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from typing import Optional
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.db.database import execute_query
 from app.utils.auth import verify_token, hash_password, verify_password, create_token, delete_token, FORCE_HTTPS
@@ -12,6 +14,9 @@ from app.utils.short_code import generate_short_code, is_valid_short_code
 
 router = APIRouter(prefix="/d", tags=["dashboard"])
 templates = Jinja2Templates(directory="templates")
+
+# Get limiter from main app (will be injected)
+limiter = Limiter(key_func=get_remote_address)
 
 # Registration configuration
 REGISTRATION_ENABLED = os.getenv("ENABLE_REGISTRATION", "false").lower() == "true"
@@ -65,6 +70,7 @@ async def dashboard(
 
 
 @router.post("/links", response_class=HTMLResponse)
+@limiter.limit("10/minute")
 async def create_link(
     request: Request,
     original_url: str = Form(...),
@@ -207,7 +213,9 @@ async def login_page(request: Request):
 
 
 @router.post("/login")
+@limiter.limit("5/minute")
 async def login(
+    request: Request,
     email: str = Form(...),
     password: str = Form(...)
 ):
@@ -252,7 +260,9 @@ async def register_page(request: Request):
 
 
 @router.post("/register")
+@limiter.limit("3/hour")
 async def register(
+    request: Request,
     email: str = Form(...),
     password: str = Form(...)
 ):
