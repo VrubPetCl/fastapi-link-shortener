@@ -337,3 +337,153 @@ def test_link_stats(authenticated_client):
     assert response.status_code == 200
     assert "stats-test" in response.text
     assert "192.168.1.1" in response.text
+
+def test_edit_link_success(authenticated_client, client):
+    """Test editing a link's original_url succeeds."""
+    from app.db.database import execute_query
+
+    link_id = execute_query(
+        "INSERT INTO links (user_id, short_code, original_url) VALUES (?, ?, ?)",
+        (authenticated_client.user_id, "edit-test-succ", "https://old.com")
+    )
+
+    response = authenticated_client.put(
+        f"/d/links/{link_id}",
+        data={"original_url": "https://new.com", "password": "", "remove_password": ""}
+    )
+    assert response.status_code == 200
+
+    redir = client.get("/edit-test-succ", follow_redirects=False)
+    assert redir.status_code == 307
+    assert redir.headers["location"] == "https://new.com"
+
+
+def test_edit_link_unauthorized(authenticated_client):
+    """Test editing another user's link returns 403."""
+    from app.db.database import execute_query
+    from app.utils.auth import hash_password
+
+    other_user_id = execute_query(
+        "INSERT INTO users (email, password_hash) VALUES (?, ?)",
+        ("editother@example.com", hash_password("password123"))
+    )
+    link_id = execute_query(
+        "INSERT INTO links (user_id, short_code, original_url) VALUES (?, ?, ?)",
+        (other_user_id, "edit-test-unauth", "https://example.com")
+    )
+
+    response = authenticated_client.put(
+        f"/d/links/{link_id}",
+        data={"original_url": "https://new.com", "password": "", "remove_password": ""}
+    )
+    assert response.status_code == 403
+
+
+def test_edit_link_invalid_url(authenticated_client):
+    """Test editing with an invalid URL returns 400."""
+    from app.db.database import execute_query
+
+    link_id = execute_query(
+        "INSERT INTO links (user_id, short_code, original_url) VALUES (?, ?, ?)",
+        (authenticated_client.user_id, "edit-test-inv", "https://example.com")
+    )
+
+    response = authenticated_client.put(
+        f"/d/links/{link_id}",
+        data={"original_url": "not-a-url", "password": "", "remove_password": ""}
+    )
+    assert response.status_code == 400
+
+
+def test_create_password_protected_link(authenticated_client, client):
+    """Test creating a password-protected link."""
+    from app.db.database import execute_query
+
+    authenticated_client.post(
+        "/d/links",
+        data={
+            "original_url": "https://secret.com",
+            "custom_code": "secret-code",
+            "password": "mypassword"
+        }
+    )
+
+    response = client.get("/secret-code")
+    assert response.status_code == 401
+    assert "https://secret.com" not in response.text
+
+    link = execute_query("SELECT id, clicks FROM links WHERE short_code = ?", ("secret-code",), fetch_one=True)
+    assert link["clicks"] == 0
+
+
+def test_post_wrong_password(authenticated_client, client):
+    """Test POST with wrong password returns 401 and clicks stay 0."""
+    from app.db.database import execute_query
+    from app.utils.auth import hash_password
+
+    link_id = execute_query(
+        "INSERT INTO links (user_id, short_code, original_url, password_hash) VALUES (?, ?, ?, ?)",
+        (authenticated_client.user_id, "wrong-pass", "https://secret.com", hash_password("mypassword"))
+    )
+
+    response = client.post("/wrong-pass", data={"password": "wrong"})
+    assert response.status_code == 401
+
+    link = execute_query("SELECT clicks FROM links WHERE id = ?", (link_id,), fetch_one=True)
+    assert link["clicks"] == 0
+
+
+def test_post_right_password(authenticated_client, client):
+    """Test POST with right password returns 303 and bumps clicks."""
+    from app.db.database import execute_query
+    from app.utils.auth import hash_password
+
+    link_id = execute_query(
+        "INSERT INTO links (user_id, short_code, original_url, password_hash) VALUES (?, ?, ?, ?)",
+        (authenticated_client.user_id, "right-pass", "https://secret.com", hash_password("mypassword"))
+    )
+
+    response = client.post("/right-pass", data={"password": "mypassword"}, follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "https://secret.com"
+
+    link = execute_query("SELECT clicks FROM links WHERE id = ?", (link_id,), fetch_one=True)
+    assert link["clicks"] == 1
+
+
+def test_add_password_to_public_link(authenticated_client, client):
+    """Test adding a password to an existing public link."""
+    from app.db.database import execute_query
+
+    link_id = execute_query(
+        "INSERT INTO links (user_id, short_code, original_url) VALUES (?, ?, ?)",
+        (authenticated_client.user_id, "add-pass", "https://example.com")
+    )
+
+    authenticated_client.put(
+        f"/d/links/{link_id}",
+        data={"original_url": "https://example.com", "password": "newpassword", "remove_password": ""}
+    )
+
+    response = client.get("/add-pass", follow_redirects=False)
+    assert response.status_code == 401
+
+
+def test_remove_password_from_link(authenticated_client, client):
+    """Test removing a password from a protected link."""
+    from app.db.database import execute_query
+    from app.utils.auth import hash_password
+
+    link_id = execute_query(
+        "INSERT INTO links (user_id, short_code, original_url, password_hash) VALUES (?, ?, ?, ?)",
+        (authenticated_client.user_id, "rem-pass", "https://example.com", hash_password("mypassword"))
+    )
+
+    authenticated_client.put(
+        f"/d/links/{link_id}",
+        data={"original_url": "https://example.com", "password": "", "remove_password": "1"}
+    )
+
+    response = client.get("/rem-pass", follow_redirects=False)
+    assert response.status_code == 307
+

@@ -10,6 +10,8 @@ A modern, fast URL shortener built with FastAPI, HTMX, and Tailwind CSS.
 - **Custom Short Codes**: Create memorable custom links or use auto-generated ones
 - **Fast Redirects**: Root-level redirects (e.g., `example.com/my-link`)
 - **Modern UI**: Clean, responsive interface with HTMX for dynamic updates
+- **Link Editing**: Edit existing links at any time
+- **Password Protection**: Secure your links with optional passwords
 
 ## Tech Stack
 
@@ -236,11 +238,15 @@ All 38 tests should pass.
 ### Dashboard
 - `GET /d/` - Dashboard page
 - `POST /d/links` - Create new short link
+- `PUT /d/links/{id}` - Update a short link
+- `GET /d/links/{id}/edit` - Edit form for a link
+- `GET /d/links/{id}/row` - View row for a link
 - `DELETE /d/links/{link_id}` - Delete link
 - `GET /d/links/{link_id}/stats` - View link statistics
 
 ### Redirection
-- `GET /{short_code}` - Redirect to original URL (tracks click)
+- `GET /{short_code}` - Redirect to original URL (tracks click, prompts for password if protected)
+- `POST /{short_code}` - Unlock password-protected link
 
 ## Database Schema
 

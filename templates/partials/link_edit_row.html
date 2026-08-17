@@ -1,0 +1,24 @@
+<tr id="link-{{ link['id'] }}">
+    <td colspan="5" class="px-6 py-4">
+        <form hx-put="/d/links/{{ link['id'] }}" hx-target="#link-{{ link['id'] }}" hx-swap="outerHTML" class="flex flex-col space-y-3">
+            <div class="flex items-center space-x-4">
+                <div class="flex-grow">
+                    <input type="text" name="original_url" value="{{ link['original_url'] }}" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div class="flex-grow">
+                    <input type="password" name="password" placeholder="New password (leave blank to keep current)" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div class="flex space-x-2">
+                    <button type="submit" class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700">Save</button>
+                    <button type="button" hx-get="/d/links/{{ link['id'] }}/row" hx-target="#link-{{ link['id'] }}" hx-swap="outerHTML" class="bg-gray-200 text-gray-800 px-3 py-2 rounded hover:bg-gray-300">Cancel</button>
+                </div>
+            </div>
+            {% if link['password_hash'] %}
+            <div class="flex items-center">
+                <input type="checkbox" id="remove_password_{{ link['id'] }}" name="remove_password" value="1" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                <label for="remove_password_{{ link['id'] }}" class="ml-2 block text-sm text-gray-900">Remove password protection</label>
+            </div>
+            {% endif %}
+        </form>
+    </td>
+</tr>

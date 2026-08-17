@@ -28,6 +28,7 @@ def init_db() -> None:
             user_id INTEGER NOT NULL,
             short_code TEXT UNIQUE NOT NULL,
             original_url TEXT NOT NULL,
+            password_hash TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             clicks INTEGER DEFAULT 0,
             last_accessed TIMESTAMP,
@@ -59,6 +60,11 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_clicks_link_id
         ON clicks(link_id)
     """)
+
+    cursor.execute("PRAGMA table_info(links)")
+    columns = {row[1] for row in cursor.fetchall()}
+    if "password_hash" not in columns:
+        cursor.execute("ALTER TABLE links ADD COLUMN password_hash TEXT")
 
     conn.commit()
     conn.close()

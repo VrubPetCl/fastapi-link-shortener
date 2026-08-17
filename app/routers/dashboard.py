@@ -72,7 +72,7 @@ async def dashboard(
     # Get user's links
     links = execute_query(
         """
-        SELECT id, short_code, original_url, created_at, clicks, last_accessed
+        SELECT id, short_code, original_url, password_hash, created_at, clicks, last_accessed
         FROM links
         WHERE user_id = ?
         ORDER BY created_at DESC
@@ -104,6 +104,7 @@ async def create_link(
     request: Request,
     original_url: str = Form(...),
     custom_code: Optional[str] = Form(None),
+    password: Optional[str] = Form(None),
     user_id: int = Depends(get_current_user)
 ):
     """Create a new shortened link."""
@@ -141,20 +142,121 @@ async def create_link(
     if existing:
         raise HTTPException(status_code=400, detail="Short code already exists")
 
+    # Handle password
+    password_hash_val = None
+    if password and password.strip():
+        if len(password) < 4:
+            raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
+        password_hash_val = hash_password(password)
+
     # Create link
     link_id = execute_query(
-        "INSERT INTO links (user_id, short_code, original_url) VALUES (?, ?, ?)",
-        (user_id, short_code, original_url)
+        "INSERT INTO links (user_id, short_code, original_url, password_hash) VALUES (?, ?, ?, ?)",
+        (user_id, short_code, original_url, password_hash_val)
     )
 
     # Get the newly created link
     link = execute_query(
-        "SELECT id, short_code, original_url, created_at, clicks FROM links WHERE id = ?",
+        "SELECT id, short_code, original_url, password_hash, created_at, clicks FROM links WHERE id = ?",
         (link_id,),
         fetch_one=True
     )
 
     # Return HTMX partial with the new link row
+    return templates.TemplateResponse(
+        "partials/link_row.html",
+        {"request": request, "link": link}
+    )
+
+
+@router.get("/links/{link_id}/edit", response_class=HTMLResponse)
+async def edit_link_form(
+    request: Request,
+    link_id: int,
+    user_id: int = Depends(get_current_user)
+):
+    """Get the form to edit a link."""
+    link = execute_query(
+        "SELECT id, short_code, original_url, password_hash FROM links WHERE id = ? AND user_id = ?",
+        (link_id, user_id),
+        fetch_one=True
+    )
+    if not link:
+        raise HTTPException(status_code=404, detail="Link not found")
+
+    return templates.TemplateResponse(
+        "partials/link_edit_row.html",
+        {"request": request, "link": link}
+    )
+
+
+@router.put("/links/{link_id}", response_class=HTMLResponse)
+@limiter.limit("20/minute")
+async def update_link(
+    request: Request,
+    link_id: int,
+    original_url: str = Form(...),
+    password: Optional[str] = Form(None),
+    remove_password: Optional[str] = Form(None),
+    user_id: int = Depends(get_current_user)
+):
+    """Update a link."""
+    link = execute_query(
+        "SELECT id, user_id FROM links WHERE id = ?",
+        (link_id,),
+        fetch_one=True
+    )
+    if not link:
+        raise HTTPException(status_code=404, detail="Link not found")
+    if link["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    if not original_url or not original_url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Invalid URL")
+
+    update_sql = "UPDATE links SET original_url = ?"
+    params = [original_url]
+
+    if remove_password:
+        update_sql += ", password_hash = NULL"
+    elif password and password.strip():
+        if len(password) < 4:
+            raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
+        update_sql += ", password_hash = ?"
+        params.append(hash_password(password))
+
+    update_sql += " WHERE id = ? AND user_id = ?"
+    params.extend([link_id, user_id])
+
+    execute_query(update_sql, tuple(params))
+
+    updated_link = execute_query(
+        "SELECT id, short_code, original_url, password_hash, created_at, clicks FROM links WHERE id = ?",
+        (link_id,),
+        fetch_one=True
+    )
+
+    return templates.TemplateResponse(
+        "partials/link_row.html",
+        {"request": request, "link": updated_link}
+    )
+
+
+@router.get("/links/{link_id}/row", response_class=HTMLResponse)
+async def get_link_row(
+    request: Request,
+    link_id: int,
+    user_id: int = Depends(get_current_user)
+):
+    """Get the display row for a link (used when cancelling edit)."""
+    link = execute_query(
+        "SELECT id, short_code, original_url, password_hash, created_at, clicks FROM links WHERE id = ? AND user_id = ?",
+        (link_id, user_id),
+        fetch_one=True
+    )
+    if not link:
+        raise HTTPException(status_code=404, detail="Link not found")
+
     return templates.TemplateResponse(
         "partials/link_row.html",
         {"request": request, "link": link}
